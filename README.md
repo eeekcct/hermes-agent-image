@@ -32,12 +32,11 @@ See the [official Hermes documentation](https://hermes-agent.nousresearch.com/do
 
 ```sh
 docker buildx build --load -t hermes-agent-image:local .
-docker run --rm --user 10000:10000 \
+docker run --rm -i --user 10000:10000 \
   -e HOME=/tmp/hermes-image-check -e HERMES_HOME=/tmp/hermes-image-check \
-  --entrypoint /usr/local/libexec/hermes-image-smoke-test \
-  hermes-agent-image:local
+  --entrypoint /bin/sh hermes-agent-image:local -s < scripts/smoke-test.sh
 ```
 
 When upgrading Hermes, update the base image and digest in the Dockerfile and
 check `scripts/build-dependencies.sh` against the new upstream Dockerfile.
-When upgrading GitHub CLI, update the SHA256 checksums for both architectures.
+When upgrading GitHub CLI, update the release asset IDs and SHA256 checksums for both architectures.

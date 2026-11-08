@@ -52,9 +52,9 @@ jobs:
         env:
           IMAGE: ghcr.io/eeekcct/hermes-agent-image:sha-${{ github.sha }}-${{ matrix.arch }}
         run: |
-          docker run --rm --user 10000:10000 \
+          docker run --rm -i --user 10000:10000 \
             -e HOME=/tmp/hermes-image-check -e HERMES_HOME=/tmp/hermes-image-check \
-            --entrypoint /usr/local/libexec/hermes-image-smoke-test "$IMAGE"
+            --entrypoint /bin/sh "$IMAGE" -s < scripts/smoke-test.sh
       - name: Log in to GHCR
         if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
