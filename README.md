@@ -5,10 +5,12 @@ Supports linux/amd64 and linux/arm64.
 
 ## Publishing
 
-Manually run the **Build image** workflow with `publish` enabled.
-Publishing is only available from the main branch.
-After the first publish, set the package visibility to **Public** in GitHub Packages.
+The **Build** workflow builds and tests pull requests without publishing.
+The **Build and push** workflow publishes after changes to the Dockerfile,
+build script, build context rules, or publishing workflows are merged into main.
+It can also be run manually from main.
 
+After the first publish, set the package visibility to **Public** in GitHub Packages.
 Images are published as `ghcr.io/eeekcct/hermes-agent-image:sha-<commit SHA>` and `latest`.
 Use a commit SHA tag or image digest for deployments.
 
@@ -39,4 +41,5 @@ docker run --rm -i --user 10000:10000 \
 
 When upgrading Hermes, update the base image and digest in the Dockerfile and
 check `scripts/build-dependencies.sh` against the new upstream Dockerfile.
-When upgrading GitHub CLI, update the release asset IDs and SHA256 checksums for both architectures.
+Renovate proposes updates to the base image, GitHub Actions, and GitHub CLI
+versions and checksums for both architectures.

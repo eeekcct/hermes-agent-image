@@ -1,0 +1,28 @@
+name: Build and push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - scripts/build-dependencies.sh
+      - .github/workflows/_image.yml
+      - .github/workflows/build-and-push.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-image
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_image.yml
+    with:
+      publish: true
