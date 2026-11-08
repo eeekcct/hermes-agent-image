@@ -1,18 +1,18 @@
 # hermes-agent-image
 
-Hermes Agent に GitHub CLI・Opus・Edge TTS を追加したコンテナイメージです。
-linux/amd64・linux/arm64 に対応します。
+A Hermes Agent container image with GitHub CLI, Opus, and Edge TTS.
+Supports linux/amd64 and linux/arm64.
 
-## 公開
+## Publishing
 
-Actions の **Build image** を手動実行し、`publish` を有効にします。
-公開は main ブランチからのみ実行できます。
-初回公開後、GitHub Packages 側でパッケージの Visibility を **Public** に変更してください。
+Manually run the **Build image** workflow with `publish` enabled.
+Publishing is only available from the main branch.
+After the first publish, set the package visibility to **Public** in GitHub Packages.
 
-`ghcr.io/eeekcct/hermes-agent-image:sha-<commit SHA>` と `latest` を公開します。
-デプロイにはコミット SHA のタグか image digest を指定してください。
+Images are published as `ghcr.io/eeekcct/hermes-agent-image:sha-<commit SHA>` and `latest`.
+Use a commit SHA tag or image digest for deployments.
 
-## 使用
+## Usage
 
 ```sh
 docker run -it --rm \
@@ -26,9 +26,9 @@ docker run -d --name hermes \
   ghcr.io/eeekcct/hermes-agent-image:latest gateway run
 ```
 
-Hermes の設定と認証は [公式ドキュメント](https://hermes-agent.nousresearch.com/docs/user-guide/docker) を参照してください。
+See the [official Hermes documentation](https://hermes-agent.nousresearch.com/docs/user-guide/docker) for configuration and authentication.
 
-## ローカルビルド
+## Building locally
 
 ```sh
 docker buildx build --load -t hermes-agent-image:local .
@@ -38,6 +38,6 @@ docker run --rm --user 10000:10000 \
   hermes-agent-image:local
 ```
 
-Hermes のバージョンを変更する場合は、Dockerfile のベースイメージ・digest と、
-`scripts/build-dependencies.sh` の依存構築手順を更新先の Dockerfile に合わせて確認します。
-GitHub CLI のバージョン変更時は、両アーキテクチャの SHA256 も更新します。
+When upgrading Hermes, update the base image and digest in the Dockerfile and
+check `scripts/build-dependencies.sh` against the new upstream Dockerfile.
+When upgrading GitHub CLI, update the SHA256 checksums for both architectures.
