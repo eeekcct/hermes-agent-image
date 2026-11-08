@@ -1,0 +1,5 @@
+**
+!Dockerfile
+!scripts/
+!scripts/build-dependencies.sh
+!scripts/smoke-test.sh
