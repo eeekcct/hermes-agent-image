@@ -14,21 +14,19 @@ Actions の **Build image** を手動実行し、`publish` を有効にします
 
 ## 使用
 
-Helm Chart の values に指定します。
-
-```yaml
-image:
-  repository: ghcr.io/eeekcct/hermes-agent-image
-  tag: sha-<commit SHA>
-
-config:
-  tts:
-    provider: edge
+```sh
+docker run -it --rm \
+  -v hermes-data:/opt/data \
+  ghcr.io/eeekcct/hermes-agent-image:latest setup
 ```
 
-gh・Opus・Edge TTS を導入する initContainer と、そのための共有ボリュームは不要です。
-既存のデータ PVC、認証情報、`GH_CONFIG_DIR` は引き続き使用できます。
-STT（文字起こし）の設定は別途必要です。
+```sh
+docker run -d --name hermes \
+  -v hermes-data:/opt/data \
+  ghcr.io/eeekcct/hermes-agent-image:latest gateway run
+```
+
+Hermes の設定と認証は [公式ドキュメント](https://hermes-agent.nousresearch.com/docs/user-guide/docker) を参照してください。
 
 ## ローカルビルド
 
