@@ -17,10 +17,10 @@ rm -f /opt/hermes/manifest.json
     --no-install-project --sealed --record-selection \
     --extra all --extra messaging --extra otlp --extra anthropic --extra bedrock \
     --extra azure-identity --extra matrix --extra google-chat --extra fal \
-    --extra documents --extra edge-tts
+    --extra documents --extra edge-tts --extra stt-whisper
 
 # Recreate the same payload manifest and launchers as the upstream Dockerfile.
-# The recorded baseline now includes Edge TTS, including after future PM syncs.
+# The recorded baseline includes Edge TTS and Whisper STT, including after future PM syncs.
 /opt/hermes/.venv/bin/python -m docker.build_agent
 chmod 0644 /opt/hermes/tools/facts.json
 chmod -R a+rX,go-w /opt/hermes/.venv

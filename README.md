@@ -1,6 +1,6 @@
 # hermes-agent-image
 
-A Hermes Agent container image with GitHub CLI, Opus, and Edge TTS.
+A Hermes Agent container image with GitHub CLI, Opus, Edge TTS, and local Whisper speech recognition.
 Supports linux/amd64 and linux/arm64.
 
 ## Publishing
@@ -29,6 +29,8 @@ docker run -d --name hermes \
 ```
 
 See the [official Hermes documentation](https://hermes-agent.nousresearch.com/docs/user-guide/docker) for configuration and authentication.
+
+Whisper model files are downloaded on first use and are not bundled in the image.
 
 ## Building locally
 
