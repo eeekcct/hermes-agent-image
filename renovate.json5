@@ -1,0 +1,75 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+  timezone: "Asia/Tokyo",
+  packageRules: [
+    {
+      matchManagers: ["github-actions"],
+      pinDigests: true,
+      groupName: "GitHub Actions",
+    },
+    {
+      matchDatasources: ["docker"],
+      pinDigests: true,
+    },
+    {
+      matchDatasources: ["github-release-attachments"],
+      matchPackageNames: ["cli/cli"],
+      groupName: "GitHub CLI",
+    },
+    {
+      // The custom manager below owns the verifier version AND binary checksum.
+      // Keep the installer's action SHA managed by github-actions as usual.
+      matchManagers: ["github-actions"],
+      matchDepTypes: ["uses-with"],
+      matchPackageNames: ["slsa-framework/verifier"],
+      enabled: false,
+    },
+    {
+      matchDatasources: ["github-release-attachments"],
+      matchPackageNames: ["slsa-framework/verifier"],
+      groupName: "SLSA verifier",
+    },
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^Dockerfile$/"],
+      matchStrings: [
+        "ARG GH_AMD64_VERSION=(?<currentValue>v\\S+)\\nARG GH_AMD64_SHA256=(?<currentDigest>[a-f0-9]{64})",
+      ],
+      depNameTemplate: "cli/cli",
+      datasourceTemplate: "github-release-attachments",
+      versioningTemplate: "semver",
+    },
+    {
+      customType: "regex",
+      managerFilePatterns: ["/^Dockerfile$/"],
+      matchStrings: [
+        "ARG GH_ARM64_VERSION=(?<currentValue>v\\S+)\\nARG GH_ARM64_SHA256=(?<currentDigest>[a-f0-9]{64})",
+      ],
+      depNameTemplate: "cli/cli",
+      datasourceTemplate: "github-release-attachments",
+      versioningTemplate: "semver",
+    },
+    {
+      // Both workflows use the same linux-amd64 verifier binary. Keep each pair
+      // adjacent so Renovate can identify its release asset by the pinned hash.
+      customType: "regex",
+      managerFilePatterns: [
+        ".github/workflows/_image.yml",
+        ".github/workflows/build.yml",
+      ],
+      matchStrings: [
+        "SLSA_VERIFIER_VERSION: (?<currentValue>v\\S+)[ \\t]*\\r?\\n[ \\t]*SLSA_VERIFIER_SHA256: (?<currentDigest>[a-f0-9]{64})",
+      ],
+      depNameTemplate: "slsa-framework/verifier",
+      datasourceTemplate: "github-release-attachments",
+      versioningTemplate: "semver",
+    },
+  ],
+  labels: ["dependencies"],
+  commitMessagePrefix: "chore(deps):",
+  prHourlyLimit: 2,
+  prConcurrentLimit: 10,
+}
