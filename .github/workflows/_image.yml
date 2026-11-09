@@ -83,22 +83,77 @@ jobs:
       contents: read
       packages: read
       attestations: read
+    env:
+      IMAGE: ghcr.io/eeekcct/hermes-agent-image
+      REPOSITORY: eeekcct/hermes-agent-image
+      WORKFLOW: eeekcct/hermes-agent-image/.github/workflows/_image.yml
+      BUILDER: https://github.com/eeekcct/hermes-agent-image/.github/workflows/_image.yml@refs/heads/main
+      DIGEST: ${{ needs.publish.outputs.digest }}
+      SOURCE_SHA: ${{ github.sha }}
     steps:
-      # The verifier has no signing/OIDC or package-write permission.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+      # No checkout, signing/OIDC permission, or package-write permission.
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify signed image and SLSA Build Level 3 policy
+      - name: Verify image identity and provenance with GitHub CLI
         env:
           GH_TOKEN: ${{ github.token }}
-          DIGEST: ${{ needs.publish.outputs.digest }}
-          SOURCE_SHA: ${{ github.sha }}
-        run: bash scripts/verify-release.sh
+        shell: bash
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh attestation verify "oci://$IMAGE@$DIGEST" \
+            --repo "$REPOSITORY" \
+            --signer-workflow "$WORKFLOW" \
+            --signer-digest "$SOURCE_SHA" \
+            --source-digest "$SOURCE_SHA" \
+            --source-ref refs/heads/main \
+            --deny-self-hosted-runners \
+            --format json > "$RUNNER_TEMP/verified.json"
+          # Use only a bundle accepted by the certificate-backed checks above.
+          jq -e '.[0].attestation.bundle | select(type == "object")' \
+            "$RUNNER_TEMP/verified.json" > "$RUNNER_TEMP/bundle.json"
+      - name: Install pinned official SLSA verifier
+        env:
+          SLSA_VERIFIER_VERSION: v0.1.1
+          SLSA_VERIFIER_SHA256: 7053bb00052a64c77dbba4400636fd22d336c1b10aba9aac1db44744b9efba31
+        shell: bash
+        run: |
+          # slsa-framework/verifier distributes a CLI, not a GitHub Action.
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --retry 3 \
+            --output "$RUNNER_TEMP/slsa-verifier" \
+            "https://github.com/slsa-framework/verifier/releases/download/$SLSA_VERIFIER_VERSION/slsa-verifier-$SLSA_VERIFIER_VERSION-linux-amd64"
+          printf '%s  %s\n' "$SLSA_VERIFIER_SHA256" "$RUNNER_TEMP/slsa-verifier" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/slsa-verifier"
+      - name: Require SLSA Build Level 3 policy
+        shell: bash
+        run: |
+          # The allowlist explicitly trusts the reviewed reusable workflow.
+          # shell: bash enables pipefail: a printed level never overrides failure.
+          "$RUNNER_TEMP/slsa-verifier" build \
+            --require-signatures \
+            --signer "sigstore::https://token.actions.githubusercontent.com::$BUILDER" \
+            --param "expected_source:github.com/$REPOSITORY" \
+            --param "trusted_builders:[$BUILDER]" \
+            --param 'expected_branch:refs/heads/main' \
+            --subject "$DIGEST" \
+            --level 3 \
+            --verbose \
+            "$RUNNER_TEMP/bundle.json" | tee "$RUNNER_TEMP/slsa-result.txt"
+      - name: Summarize successful provenance verification
+        shell: bash
+        run: |
+          {
+            printf '### Release provenance verification passed\n\n'
+            printf 'Image: `%s@%s`\n\n' "$IMAGE" "$DIGEST"
+            printf 'Source and signer commit: `%s`\n\n' "$SOURCE_SHA"
+            printf '```text\n'
+            cat "$RUNNER_TEMP/slsa-result.txt"
+            printf '```\n\n'
+            printf 'The SLSA level is a policy result trusting the reviewed reusable workflow, not an independent certification.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   promote:
     needs: [publish, verify]

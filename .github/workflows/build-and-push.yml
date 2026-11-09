@@ -8,7 +8,6 @@ on:
       - Dockerfile
       - .dockerignore
       - scripts/build-dependencies.sh
-      - scripts/verify-release.sh
       - .github/workflows/_build.yml
       - .github/workflows/_image.yml
       - .github/workflows/build-and-push.yml

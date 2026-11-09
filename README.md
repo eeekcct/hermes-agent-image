@@ -36,7 +36,10 @@ It follows GitHub's [SLSA v1 Build Level 3 guidance](https://docs.github.com/en/
   [SLSA Verifier](https://github.com/slsa-framework/verifier), requiring signatures,
   the expected signer, source repository, main branch, and image digest, with
   the reviewed `_image.yml` workflow explicitly trusted as the builder.
-  The verifier version and SHA-256 are pinned in `scripts/verify-release.sh`.
+  The verifier version and SHA-256 are pinned in `_image.yml`.
+  Verification is implemented as named workflow steps without project script files
+  or a source checkout. The official verifier currently ships only a CLI, so its
+  download and invocation use inline `run` steps.
 - Only after both verifiers succeed does a separate promotion job update `latest`.
   The Actions summary includes the image digest, source commit, level, and check results.
 
@@ -45,9 +48,9 @@ bind the amd64/arm64 images and SBOMs. It is not a separate signature for every
 base image or dependency. Architecture/commit tags can exist if a later
 attestation or verification step fails; `latest` is promoted only on success.
 Pull request builds never invoke the signing workflow.
-They do run the release-verification regression tests, including a verifier
-failure that still prints `SLSA Level: 3`. The overall exit status gates promotion;
-the workflow never accepts a numeric level or a `PASS` string by itself.
+The overall exit status gates promotion, including when a failed verifier still
+prints `SLSA Level: 3`. The workflow never accepts a numeric level or a `PASS`
+string by itself.
 
 ### Verify a released image
 
@@ -121,14 +124,6 @@ check `scripts/build-dependencies.sh` against the new upstream Dockerfile.
 Renovate proposes updates to the base image, GitHub Actions, and GitHub CLI
 versions and checksums for both architectures.
 
-Run the release-verification regression tests with:
-
-```sh
-python3 -m unittest discover -s tests -v
-```
-
-These tests require Bash and jq, use mocked network/download commands, and do
-not publish images or request signing credentials. When updating the SLSA
-Verifier, review its official release, update its version and SHA-256 together
-in `scripts/verify-release.sh`, update the corresponding test expectations,
-and rerun the tests. The existing `gh` certificate checks must remain in place.
+When updating the SLSA Verifier, review its official release and update its
+version and SHA-256 together in `.github/workflows/_image.yml`. Keep the existing
+`gh` certificate checks and fail-closed verifier exit-status checks in place.
