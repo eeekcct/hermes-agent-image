@@ -14,6 +14,69 @@ After the first publish, set the package visibility to **Public** in GitHub Pack
 Images are published as `ghcr.io/eeekcct/hermes-agent-image:sha-<commit SHA>` and `latest`.
 Use a commit SHA tag or image digest for deployments.
 
+Published images include BuildKit-generated SPDX SBOMs for both architectures.
+Build and release are managed by `.github/workflows/_image.yml`, a reusable
+workflow with no caller-supplied build commands, image digests, or runner inputs.
+It follows GitHub's [SLSA v1 Build Level 3 guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/increase-security-rating).
+
+- `_build.yml` runs Dockerfile builds and runtime smoke tests on fresh
+  GitHub-hosted amd64/arm64 VMs. These jobs have no OIDC or attestation permission.
+- Release builds do not import or export persistent Actions build caches.
+  The publish export reuses only that job's own BuildKit cache after its test.
+  Pull requests use a separate `pr-image-*` cache and read-only token permissions.
+- `_image.yml` assembles the index using the two image index digests returned
+  by this run, preserving their SBOMs. Mutable architecture tags are not inputs.
+- A fresh signing VM, without source checkout or application/test execution,
+  uses GitHub's official `actions/attest` to sign the final index digest and
+  publish provenance to GitHub and GHCR.
+- Before updating `latest`, `gh attestation verify` checks the index digest,
+  reusable signer workflow, signer/source commit, main ref, and hosted runner.
+
+The signed subject is the multi-platform index, whose immutable descriptors
+bind the amd64/arm64 images and SBOMs. It is not a separate signature for every
+base image or dependency. Architecture/commit tags can exist if a later
+attestation or verification step fails; `latest` is promoted only on success.
+Pull request builds never invoke the signing workflow.
+
+### Verify a released image
+
+Authenticate with `gh auth login` and `docker login ghcr.io`. Use the index
+digest from the release and a commit you have independently reviewed and trust:
+
+```sh
+IMAGE=ghcr.io/eeekcct/hermes-agent-image
+DIGEST='sha256:<released-index-digest>'
+TRUSTED_COMMIT='<reviewed-40-character-commit>'
+
+gh attestation verify "oci://$IMAGE@$DIGEST" \
+  --repo eeekcct/hermes-agent-image \
+  --signer-workflow eeekcct/hermes-agent-image/.github/workflows/_image.yml \
+  --signer-digest "$TRUSTED_COMMIT" \
+  --source-digest "$TRUSTED_COMMIT" \
+  --source-ref refs/heads/main \
+  --deny-self-hosted-runners
+```
+
+Replace the placeholder values before running. To verify the attestation bundle
+stored in GHCR instead of retrieving it from GitHub, add `--bundle-from-oci`.
+Do not derive `TRUSTED_COMMIT` solely from an untrusted attestation. Workflow
+changes must be reviewed: the local reusable workflow is versioned with the
+source commit, and verification pins that version. Pin deployments by digest.
+
+Inspect the SBOM inventory with Docker Buildx:
+
+```sh
+docker buildx imagetools inspect ghcr.io/eeekcct/hermes-agent-image:latest \
+  --format '{{json .SBOM}}'
+```
+
+This is a configuration targeting SLSA Build Level 3, not an independent
+certification. The first main-branch release must complete signing and
+verification before this path is considered validated. SLSA assesses the build
+process and provenance integrity; it does not guarantee vulnerability-free
+application code or dependencies. The SBOM is BuildKit metadata, not a
+GitHub-signed SBOM attestation, and no vulnerability scan is added here.
+
 ## Usage
 
 ```sh

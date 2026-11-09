@@ -8,6 +8,7 @@ on:
       - Dockerfile
       - .dockerignore
       - scripts/build-dependencies.sh
+      - .github/workflows/_build.yml
       - .github/workflows/_image.yml
       - .github/workflows/build-and-push.yml
   workflow_dispatch:
@@ -15,6 +16,8 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: publish-image
@@ -24,5 +27,3 @@ jobs:
   build-and-push:
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/_image.yml
-    with:
-      publish: true
