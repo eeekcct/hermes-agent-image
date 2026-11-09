@@ -13,4 +13,16 @@ concurrency:
 
 jobs:
   build:
-    uses: ./.github/workflows/_image.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-26.04-arm
+    uses: ./.github/workflows/_build.yml
+    with:
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
+      publish: false
