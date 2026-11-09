@@ -12,6 +12,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-tooling:
+    name: Verify release tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install pinned official SLSA verifier
+        id: slsa-verifier
+        uses: slsa-framework/actions/install/verifier@3efdf6f2112b1170cb369442620788752df11bca # v0.2.0
+        with:
+          version: v0.1.1
+          verify: true
+      - name: Check pinned SLSA verifier checksum
+        env:
+          SLSA_VERIFIER: ${{ steps.slsa-verifier.outputs.path }}
+          SLSA_VERIFIER_SHA256: 7053bb00052a64c77dbba4400636fd22d336c1b10aba9aac1db44744b9efba31
+        shell: bash
+        run: |
+          # Retain the exact binary pin in addition to the action's provenance check.
+          printf '%s  %s\n' "$SLSA_VERIFIER_SHA256" "$SLSA_VERIFIER" | sha256sum --check --strict
+
   build:
     strategy:
       fail-fast: false

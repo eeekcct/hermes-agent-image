@@ -116,23 +116,27 @@ jobs:
           jq -e '.[0].attestation.bundle | select(type == "object")' \
             "$RUNNER_TEMP/verified.json" > "$RUNNER_TEMP/bundle.json"
       - name: Install pinned official SLSA verifier
+        id: slsa-verifier
+        uses: slsa-framework/actions/install/verifier@3efdf6f2112b1170cb369442620788752df11bca # v0.2.0
+        with:
+          version: v0.1.1
+          verify: true
+      - name: Check pinned SLSA verifier checksum
         env:
-          SLSA_VERIFIER_VERSION: v0.1.1
+          SLSA_VERIFIER: ${{ steps.slsa-verifier.outputs.path }}
           SLSA_VERIFIER_SHA256: 7053bb00052a64c77dbba4400636fd22d336c1b10aba9aac1db44744b9efba31
         shell: bash
         run: |
-          # slsa-framework/verifier distributes a CLI, not a GitHub Action.
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --retry 3 \
-            --output "$RUNNER_TEMP/slsa-verifier" \
-            "https://github.com/slsa-framework/verifier/releases/download/$SLSA_VERIFIER_VERSION/slsa-verifier-$SLSA_VERIFIER_VERSION-linux-amd64"
-          printf '%s  %s\n' "$SLSA_VERIFIER_SHA256" "$RUNNER_TEMP/slsa-verifier" | sha256sum --check --strict
-          chmod +x "$RUNNER_TEMP/slsa-verifier"
+          # Retain the exact binary pin in addition to the action's provenance check.
+          printf '%s  %s\n' "$SLSA_VERIFIER_SHA256" "$SLSA_VERIFIER" | sha256sum --check --strict
       - name: Require SLSA Build Level 3 policy
+        env:
+          SLSA_VERIFIER: ${{ steps.slsa-verifier.outputs.path }}
         shell: bash
         run: |
           # The allowlist explicitly trusts the reviewed reusable workflow.
           # shell: bash enables pipefail: a printed level never overrides failure.
-          "$RUNNER_TEMP/slsa-verifier" build \
+          "$SLSA_VERIFIER" build \
             --require-signatures \
             --signer "sigstore::https://token.actions.githubusercontent.com::$BUILDER" \
             --param "expected_source:github.com/$REPOSITORY" \
