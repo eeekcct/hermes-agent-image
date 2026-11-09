@@ -29,7 +29,7 @@ jobs:
 
   attest-and-promote:
     needs: build-and-push
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write

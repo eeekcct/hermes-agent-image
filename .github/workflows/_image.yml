@@ -18,9 +18,9 @@ jobs:
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-latest
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
@@ -76,7 +76,7 @@ jobs:
   publish:
     needs: build
     if: inputs.publish
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.image.outputs.digest }}
     steps:
