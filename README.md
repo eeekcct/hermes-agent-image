@@ -14,29 +14,35 @@ After the first publish, set the package visibility to **Public** in GitHub Pack
 Images are published as `ghcr.io/eeekcct/hermes-agent-image:sha-<commit SHA>` and `latest`.
 Use a commit SHA tag or image digest for deployments.
 
-Published images include a BuildKit SPDX SBOM (detected software inventory) and
-`mode=max` provenance (build inputs and recipe) for both architectures. They are
-attached to the GHCR image index and retained in the multi-platform tags.
+Published images include BuildKit-generated SPDX SBOMs for both architectures.
+The workflow smoke-tests a locally loaded image, then publishes the cached build
+directly to GHCR with `sbom: true`. The multi-platform index retains those SBOMs.
 
-The workflow smoke-tests a locally loaded image, then exports the cached build
-directly to GHCR with attestations. It checks that the published image's config
-digest matches the tested image, and requires both attestation types for each
-architecture before updating `latest`. A mismatch fails the release; the
-architecture/commit tags may already exist, but `latest` is not promoted.
-Pull request builds test locally without publishing attestations.
+GitHub's official `actions/attest` generates signed SLSA provenance for the final
+multi-platform index and publishes it to GitHub and GHCR. Only after attestation
+succeeds is that digest promoted to `latest`. Architecture/commit tags can exist
+if a later publishing or attestation step fails. Pull request builds test locally
+without publishing images or attestations.
 
-To check a published image (Docker Buildx and Python 3 required):
+Verify signed provenance with the GitHub CLI (authenticate with `gh auth login`
+first):
 
 ```sh
-python3 scripts/verify-attestations.py \
-  ghcr.io/eeekcct/hermes-agent-image:latest \
-  --platform amd64 --platform arm64
+gh attestation verify oci://ghcr.io/eeekcct/hermes-agent-image:latest \
+  --repo eeekcct/hermes-agent-image
 ```
 
-Attestations provide inventory and build metadata; this does not add a
-cryptographic publisher signature or perform vulnerability scanning. `mode=max`
-includes build argument values, so credentials must use BuildKit secret mounts,
-never build arguments.
+Inspect the SBOM inventory with Docker Buildx:
+
+```sh
+docker buildx imagetools inspect ghcr.io/eeekcct/hermes-agent-image:latest \
+  --format '{{json .SBOM}}'
+```
+
+The SBOM is BuildKit metadata, not a GitHub-signed SBOM attestation. The signed
+provenance identifies the GitHub workflow and source that published the index;
+it is separate from BuildKit's detailed `mode=max` provenance. Neither performs
+vulnerability scanning.
 
 ## Usage
 

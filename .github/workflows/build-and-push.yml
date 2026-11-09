@@ -8,7 +8,6 @@ on:
       - Dockerfile
       - .dockerignore
       - scripts/build-dependencies.sh
-      - scripts/verify-attestations.py
       - .github/workflows/_image.yml
       - .github/workflows/build-and-push.yml
   workflow_dispatch:
@@ -27,3 +26,32 @@ jobs:
     uses: ./.github/workflows/_image.yml
     with:
       publish: true
+
+  attest-and-promote:
+    needs: build-and-push
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Attest multi-platform image provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/eeekcct/hermes-agent-image
+          subject-digest: ${{ needs.build-and-push.outputs.digest }}
+          push-to-registry: true
+          # Storage records are for organization-owned repositories.
+          create-storage-record: false
+      - name: Promote attested image to latest
+        env:
+          IMAGE: ghcr.io/eeekcct/hermes-agent-image
+          DIGEST: ${{ needs.build-and-push.outputs.digest }}
+        run: docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
