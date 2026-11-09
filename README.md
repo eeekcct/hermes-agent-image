@@ -125,10 +125,13 @@ docker run --rm -i --user 10000:10000 \
 
 When upgrading Hermes, update the base image and digest in the Dockerfile and
 check `scripts/build-dependencies.sh` against the new upstream Dockerfile.
-Renovate proposes updates to the base image, GitHub Actions, and GitHub CLI
-versions and checksums for both architectures.
+Renovate is configured in `renovate.json5`. It proposes updates to the base image,
+GitHub Actions, GitHub CLI versions and checksums for both architectures, and the
+SLSA Verifier version and binary checksum in both workflows. The verifier pairs
+are updated together in a separate PR group from GitHub CLI and GitHub Actions.
 
-When updating the SLSA Verifier, review its official release and update its
-version and SHA-256 together in `.github/workflows/_image.yml` and the
-`.github/workflows/build.yml` installer smoke test. Keep the existing
-`gh` certificate checks and fail-closed verifier exit-status checks in place.
+When reviewing SLSA Verifier updates, check the official release and the paired
+version and SHA-256 changes in `.github/workflows/_image.yml` and the
+`.github/workflows/build.yml` installer smoke test. Keep each pair adjacent for
+Renovate, and preserve the existing `gh` certificate checks and fail-closed
+verifier exit-status checks.
