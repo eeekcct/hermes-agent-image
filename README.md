@@ -14,6 +14,30 @@ After the first publish, set the package visibility to **Public** in GitHub Pack
 Images are published as `ghcr.io/eeekcct/hermes-agent-image:sha-<commit SHA>` and `latest`.
 Use a commit SHA tag or image digest for deployments.
 
+Published images include a BuildKit SPDX SBOM (detected software inventory) and
+`mode=max` provenance (build inputs and recipe) for both architectures. They are
+attached to the GHCR image index and retained in the multi-platform tags.
+
+The workflow smoke-tests a locally loaded image, then exports the cached build
+directly to GHCR with attestations. It checks that the published image's config
+digest matches the tested image, and requires both attestation types for each
+architecture before updating `latest`. A mismatch fails the release; the
+architecture/commit tags may already exist, but `latest` is not promoted.
+Pull request builds test locally without publishing attestations.
+
+To check a published image (Docker Buildx and Python 3 required):
+
+```sh
+python3 scripts/verify-attestations.py \
+  ghcr.io/eeekcct/hermes-agent-image:latest \
+  --platform amd64 --platform arm64
+```
+
+Attestations provide inventory and build metadata; this does not add a
+cryptographic publisher signature or perform vulnerability scanning. `mode=max`
+includes build argument values, so credentials must use BuildKit secret mounts,
+never build arguments.
+
 ## Usage
 
 ```sh
