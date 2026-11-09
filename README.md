@@ -29,14 +29,25 @@ It follows GitHub's [SLSA v1 Build Level 3 guidance](https://docs.github.com/en/
 - A fresh signing VM, without source checkout or application/test execution,
   uses GitHub's official `actions/attest` to sign the final index digest and
   publish provenance to GitHub and GHCR.
-- Before updating `latest`, `gh attestation verify` checks the index digest,
-  reusable signer workflow, signer/source commit, main ref, and hosted runner.
+- A separate read-only verification VM runs `gh attestation verify` to check
+  the index digest, reusable signer workflow, signer/source commit, main ref,
+  and hosted runner. It has no OIDC, attestation-write, or package-write permission.
+- The same VM checks the verified bundle with the new
+  [SLSA Verifier](https://github.com/slsa-framework/verifier), requiring signatures,
+  the expected signer, source repository, main branch, and image digest, with
+  the reviewed `_image.yml` workflow explicitly trusted as the builder.
+  The verifier version and SHA-256 are pinned in `scripts/verify-release.sh`.
+- Only after both verifiers succeed does a separate promotion job update `latest`.
+  The Actions summary includes the image digest, source commit, level, and check results.
 
 The signed subject is the multi-platform index, whose immutable descriptors
 bind the amd64/arm64 images and SBOMs. It is not a separate signature for every
 base image or dependency. Architecture/commit tags can exist if a later
 attestation or verification step fails; `latest` is promoted only on success.
 Pull request builds never invoke the signing workflow.
+They do run the release-verification regression tests, including a verifier
+failure that still prints `SLSA Level: 3`. The overall exit status gates promotion;
+the workflow never accepts a numeric level or a `PASS` string by itself.
 
 ### Verify a released image
 
@@ -71,8 +82,9 @@ docker buildx imagetools inspect ghcr.io/eeekcct/hermes-agent-image:latest \
 ```
 
 This is a configuration targeting SLSA Build Level 3, not an independent
-certification. The first main-branch release must complete signing and
-verification before this path is considered validated. SLSA assesses the build
+certification. The verifier's level is a policy result based on trusting the
+reviewed reusable workflow; it is not an independent audit of builder isolation.
+SLSA assesses the build
 process and provenance integrity; it does not guarantee vulnerability-free
 application code or dependencies. The SBOM is BuildKit metadata, not a
 GitHub-signed SBOM attestation, and no vulnerability scan is added here.
@@ -108,3 +120,15 @@ When upgrading Hermes, update the base image and digest in the Dockerfile and
 check `scripts/build-dependencies.sh` against the new upstream Dockerfile.
 Renovate proposes updates to the base image, GitHub Actions, and GitHub CLI
 versions and checksums for both architectures.
+
+Run the release-verification regression tests with:
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+These tests require Bash and jq, use mocked network/download commands, and do
+not publish images or request signing credentials. When updating the SLSA
+Verifier, review its official release, update its version and SHA-256 together
+in `scripts/verify-release.sh`, update the corresponding test expectations,
+and rerun the tests. The existing `gh` certificate checks must remain in place.

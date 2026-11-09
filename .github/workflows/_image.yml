@@ -4,8 +4,8 @@ on:
   workflow_call:
     outputs:
       digest:
-        description: Signed multi-platform image digest
-        value: ${{ jobs.publish.outputs.digest }}
+        description: Verified and promoted multi-platform image digest
+        value: ${{ jobs.promote.outputs.digest }}
 
 jobs:
   build-amd64:
@@ -75,22 +75,50 @@ jobs:
           push-to-registry: true
           # Organization-only storage records do not apply to this repository.
           create-storage-record: false
-      - name: Verify digest, reusable signer and source before promotion
+
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      attestations: read
+    steps:
+      # The verifier has no signing/OIDC or package-write permission.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify signed image and SLSA Build Level 3 policy
         env:
           GH_TOKEN: ${{ github.token }}
-          IMAGE: ghcr.io/eeekcct/hermes-agent-image
-          DIGEST: ${{ steps.image.outputs.digest }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
           SOURCE_SHA: ${{ github.sha }}
-        run: |
-          gh attestation verify "oci://$IMAGE@$DIGEST" \
-            --repo eeekcct/hermes-agent-image \
-            --signer-workflow eeekcct/hermes-agent-image/.github/workflows/_image.yml \
-            --signer-digest "$SOURCE_SHA" \
-            --source-digest "$SOURCE_SHA" \
-            --source-ref refs/heads/main \
-            --deny-self-hosted-runners
+        run: bash scripts/verify-release.sh
+
+  promote:
+    needs: [publish, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ needs.publish.outputs.digest }}
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Promote verified image to latest
         env:
           IMAGE: ghcr.io/eeekcct/hermes-agent-image
-          DIGEST: ${{ steps.image.outputs.digest }}
-        run: docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$DIGEST"
