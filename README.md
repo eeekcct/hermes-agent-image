@@ -5,7 +5,8 @@ Supports linux/amd64 and linux/arm64.
 
 ## Publishing
 
-The **Build** workflow builds and tests pull requests without publishing.
+The **Build** workflow builds and tests pull requests without publishing,
+and smoke-tests the release verifier installation with read-only permissions.
 The **Build and push** workflow publishes after changes to the Dockerfile,
 build script, build context rules, or publishing workflows are merged into main.
 It can also be run manually from main.
@@ -37,9 +38,12 @@ It follows GitHub's [SLSA v1 Build Level 3 guidance](https://docs.github.com/en/
   the expected signer, source repository, main branch, and image digest, with
   the reviewed `_image.yml` workflow explicitly trusted as the builder.
   The verifier version and SHA-256 are pinned in `_image.yml`.
-  Verification is implemented as named workflow steps without project script files
-  or a source checkout. The official verifier currently ships only a CLI, so its
-  download and invocation use inline `run` steps.
+  The SHA-pinned official
+  [`slsa-framework/actions/install/verifier`](https://github.com/slsa-framework/actions/tree/v0.2.0/install/verifier)
+  action installs the CLI and verifies its release provenance. An additional
+  checksum check retains the exact binary pin before the image policy check.
+  Verification remains in named workflow steps without project script files
+  or a source checkout.
 - Only after both verifiers succeed does a separate promotion job update `latest`.
   The Actions summary includes the image digest, source commit, level, and check results.
 
@@ -125,5 +129,6 @@ Renovate proposes updates to the base image, GitHub Actions, and GitHub CLI
 versions and checksums for both architectures.
 
 When updating the SLSA Verifier, review its official release and update its
-version and SHA-256 together in `.github/workflows/_image.yml`. Keep the existing
+version and SHA-256 together in `.github/workflows/_image.yml` and the
+`.github/workflows/build.yml` installer smoke test. Keep the existing
 `gh` certificate checks and fail-closed verifier exit-status checks in place.
