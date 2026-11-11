@@ -22,3 +22,24 @@ assert compute_types, "No CTranslate2 CPU compute types are available"
 print("Edge TTS, Whisper STT imports and Opus decoder: OK")
 print("CTranslate2 CPU compute types:", sorted(compute_types))
 PY
+
+cat > "$HERMES_HOME/config.yaml" <<'YAML'
+dashboard:
+  oauth:
+    dex:
+      issuer: https://dex.example.invalid
+      client_id: hermes-dashboard
+      access:
+        users:
+          - connector_id: github
+            user_id: "123"
+YAML
+
+python - <<'PY'
+from hermes_cli.dashboard_auth.registry import get_provider
+from hermes_cli.plugins import discover_plugins
+
+discover_plugins()
+assert get_provider("dex") is not None, "Bundled Dex auth provider did not register"
+print("Bundled Dex dashboard auth: OK")
+PY

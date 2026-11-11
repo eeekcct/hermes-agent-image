@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM nousresearch/hermes-agent:v0.23.0@sha256:adb7890916de63245523492be8f68f9d2095fecbec4e2a6dab7960381f0fc002
+FROM scratch AS dex-auth-source
+ADD https://github.com/eeekcct/hermes-dex-auth-plugin.git#b6ddc1e89e3fe15dee8a0f90f9455637080d99d2 /src/
+
+FROM nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
 
 USER root
 WORKDIR /opt/hermes
@@ -41,11 +44,13 @@ RUN set -eu; \
     gh --version
 
 COPY --chmod=0755 scripts/build-dependencies.sh /usr/local/libexec/build-hermes-dependencies
+COPY --from=dex-auth-source /src/src/hermes_dex_auth_plugin/ /opt/hermes/plugins/dashboard_auth/dex-auth/
+COPY --from=dex-auth-source /src/plugin.yaml /opt/hermes/plugins/dashboard_auth/dex-auth/plugin.yaml
 RUN /usr/local/libexec/build-hermes-dependencies
 
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.source="https://github.com/eeekcct/hermes-agent-image" \
-      org.opencontainers.image.description="Hermes Agent with GitHub CLI, Opus and Edge TTS" \
+      org.opencontainers.image.description="Hermes Agent with GitHub CLI, Opus, Edge TTS, local Whisper STT and Dex dashboard authentication" \
       org.opencontainers.image.revision="${VCS_REF}"
 
 # Keep the upstream root entrypoint: it prepares the volume and drops privileges
