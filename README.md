@@ -1,6 +1,6 @@
 # hermes-agent-image
 
-A Hermes Agent container image with GitHub CLI, Opus, Edge TTS, and local Whisper speech recognition.
+A Hermes Agent container image with GitHub CLI, Opus, Edge TTS, local Whisper speech recognition, and Dex dashboard authentication.
 Supports linux/amd64 and linux/arm64.
 
 ## Publishing
@@ -111,6 +111,10 @@ docker run -d --name hermes \
 ```
 
 See the [official Hermes documentation](https://hermes-agent.nousresearch.com/docs/user-guide/docker) for configuration and authentication.
+
+The [Dex dashboard auth plugin](https://github.com/eeekcct/hermes-dex-auth-plugin) is bundled at the commit pinned in the Dockerfile.
+Configure `dashboard.oauth.dex` in your Hermes configuration to activate it.
+For a confidential Dex client, supply `HERMES_DEX_CLIENT_SECRET` at runtime.
 
 Whisper model files are downloaded on first use and are not bundled in the image.
 
