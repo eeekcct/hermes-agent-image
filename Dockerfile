@@ -2,7 +2,7 @@
 FROM scratch AS dex-auth-source
 ADD https://github.com/eeekcct/hermes-dex-auth-plugin.git#b6ddc1e89e3fe15dee8a0f90f9455637080d99d2 /src/
 
-FROM nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
+FROM nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
 
 USER root
 WORKDIR /opt/hermes
